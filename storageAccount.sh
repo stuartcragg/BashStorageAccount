@@ -18,13 +18,13 @@ check_status() {
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 [-f <params_file>] [-r <resource_group>] [-l <location>] [-s <storage_account_name>] [-v <vnet_name>] [-n <subnet_name>] [-p <private_endpoint_name>] [-k <sku>] [-t <performance_tier>] [-d <dns_subscription_id>] [-g <dns_resource_group>] [-z <dns_zone_name>] [-c <container_name>] [-i <point_in_time_restore>] [-j <point_in_time_restore_days>] [-b <soft_delete_blobs>] [-q <soft_delete_blobs_days>] [-o <soft_delete_containers>] [-e <soft_delete_containers_days>] [-a <soft_delete_file_shares>] [-y <soft_delete_file_shares_days>] [-m <versioning_blobs>] [-x <blob_change_feed>] [-u <blob_change_feed_days>] [-w <version_level_immutability>]"
+    echo "Usage: $0 [-f <params_file>] [-r <storage_resource_group>] [-v <vnet_resource_group>] [-l <location>] [-s <storage_account_name>] [-n <vnet_name>] [-b <subnet_name>] [-p <private_endpoint_name>] [-k <sku>] [-t <performance_tier>] [-d <dns_subscription_id>] [-g <dns_resource_group>] [-z <dns_zone_name>] [-c <container_name>] [-i <point_in_time_restore>] [-j <point_in_time_restore_days>] [-o <soft_delete_blobs>] [-q <soft_delete_blobs_days>] [-u <soft_delete_containers>] [-e <soft_delete_containers_days>] [-a <soft_delete_file_shares>] [-y <soft_delete_file_shares_days>] [-m <versioning_blobs>] [-x <blob_change_feed>] [-w <blob_change_feed_days>]"
     echo "  -f: Path to parameters file (e.g., params_dev.json)"
-    echo "  Required parameters: resourceGroup, location, storageAccountName, vnetName, subnetName, privateEndpointName, sku, performanceTier, dnsSubscriptionId, dnsResourceGroup, dnsZoneName, containerName"
-    echo "  Optional parameters: pointInTimeRestore, pointInTimeRestoreDays, softDeleteBlobs, softDeleteBlobsDays, softDeleteContainers, softDeleteContainersDays, softDeleteFileShares, softDeleteFileSharesDays, versioningBlobs, blobChangeFeed, blobChangeFeedDays, versionLevelImmutability"
+    echo "  Required parameters: storageResourceGroup, vnetResourceGroup, location, storageAccountName, vnetName, subnetName, privateEndpointName, sku, performanceTier, dnsSubscriptionId, dnsResourceGroup, dnsZoneName, containerNames (array)"
+    echo "  Optional parameters: pointInTimeRestore, pointInTimeRestoreDays, softDeleteBlobs, softDeleteBlobsDays, softDeleteContainers, softDeleteContainersDays, softDeleteFileShares, softDeleteFileSharesDays, versioningBlobs, blobChangeFeed, blobChangeFeedDays"
     echo "  performanceTier must be 'Standard' or 'Premium'"
     echo "  Example with file: $0 -f params_dev.json"
-    echo "  Example with args: $0 -r my-rg -l eastus -s mystorage123 -v my-vnet -n my-subnet -p mystorage123-pe -k Standard_LRS -t Standard -d <dns-sub-id> -g dns-rg -z privatelink.blob.core.windows.net -c tfstate -i true -j 7"
+    echo "  Example with args: $0 -r storage-rg -v vnet-rg -l eastus -s mystorage123 -n my-vnet -b my-subnet -p mystorage123-pe -k Standard_LRS -t Standard -d <dns-sub-id> -g dns-rg -z privatelink.blob.core.windows.net -c tfstate -i true -j 7"
     exit 1
 }
 
@@ -33,33 +33,33 @@ ORIGINAL_SUBSCRIPTION=$(az account show --query id -o tsv)
 check_status "Capturing original subscription"
 
 # Parse command-line arguments
-while getopts "f:r:l:s:v:n:p:k:t:d:g:z:c:i:j:b:q:o:e:a:y:m:x:u:w:h" opt; do
+while getopts "f:r:v:l:s:n:b:p:k:t:d:g:z:c:i:j:o:q:u:e:a:y:m:x:w:h" opt; do
     case $opt in
         f) PARAMS_FILE="$OPTARG";;
-        r) RESOURCE_GROUP="$OPTARG";;
+        r) STORAGE_RESOURCE_GROUP="$OPTARG";;
+        v) VNET_RESOURCE_GROUP="$OPTARG";;
         l) LOCATION="$OPTARG";;
         s) STORAGE_ACCOUNT_NAME="$OPTARG";;
-        v) VNET_NAME="$OPTARG";;
-        n) SUBNET_NAME="$OPTARG";;
+        n) VNET_NAME="$OPTARG";;
+        b) SUBNET_NAME="$OPTARG";;
         p) PRIVATE_ENDPOINT_NAME="$OPTARG";;
         k) SKU="$OPTARG";;
         t) PERFORMANCE_TIER="$OPTARG";;
         d) DNS_SUBSCRIPTION_ID="$OPTARG";;
         g) DNS_RESOURCE_GROUP="$OPTARG";;
         z) DNS_ZONE_NAME="$OPTARG";;
-        c) CONTAINER_NAME="$OPTARG";;
+        c) CONTAINER_NAMES="$OPTARG";;
         i) POINT_IN_TIME_RESTORE="$OPTARG";;
         j) POINT_IN_TIME_RESTORE_DAYS="$OPTARG";;
-        b) SOFT_DELETE_BLOBS="$OPTARG";;
+        o) SOFT_DELETE_BLOBS="$OPTARG";;
         q) SOFT_DELETE_BLOBS_DAYS="$OPTARG";;
-        o) SOFT_DELETE_CONTAINERS="$OPTARG";;
+        u) SOFT_DELETE_CONTAINERS="$OPTARG";;
         e) SOFT_DELETE_CONTAINERS_DAYS="$OPTARG";;
         a) SOFT_DELETE_FILE_SHARES="$OPTARG";;
         y) SOFT_DELETE_FILE_SHARES_DAYS="$OPTARG";;
         m) VERSIONING_BLOBS="$OPTARG";;
         x) BLOB_CHANGE_FEED="$OPTARG";;
-        u) BLOB_CHANGE_FEED_DAYS="$OPTARG";;
-        w) VERSION_LEVEL_IMMUTABILITY="$OPTARG";;
+        w) BLOB_CHANGE_FEED_DAYS="$OPTARG";;
         h) usage;;
         ?) usage;;
     esac
@@ -72,7 +72,8 @@ if [ -n "$PARAMS_FILE" ]; then
         exit 1
     fi
     # Use jq to parse JSON (requires jq installed)
-    RESOURCE_GROUP=$(jq -r '.resourceGroup // empty' "$PARAMS_FILE")
+    STORAGE_RESOURCE_GROUP=$(jq -r '.storageResourceGroup // empty' "$PARAMS_FILE")
+    VNET_RESOURCE_GROUP=$(jq -r '.vnetResourceGroup // empty' "$PARAMS_FILE")
     LOCATION=$(jq -r '.location // empty' "$PARAMS_FILE")
     STORAGE_ACCOUNT_NAME=$(jq -r '.storageAccountName // empty' "$PARAMS_FILE")
     VNET_NAME=$(jq -r '.vnetName // empty' "$PARAMS_FILE")
@@ -83,7 +84,8 @@ if [ -n "$PARAMS_FILE" ]; then
     DNS_SUBSCRIPTION_ID=$(jq -r '.dnsSubscriptionId // empty' "$PARAMS_FILE")
     DNS_RESOURCE_GROUP=$(jq -r '.dnsResourceGroup // empty' "$PARAMS_FILE")
     DNS_ZONE_NAME=$(jq -r '.dnsZoneName // empty' "$PARAMS_FILE")
-    CONTAINER_NAME=$(jq -r '.containerName // empty' "$PARAMS_FILE")
+    # Parse containerNames as an array
+    CONTAINER_NAMES=$(jq -r '.containerNames[]' "$PARAMS_FILE" | tr '\n' ' ')
     POINT_IN_TIME_RESTORE=$(jq -r '.pointInTimeRestore // empty' "$PARAMS_FILE")
     POINT_IN_TIME_RESTORE_DAYS=$(jq -r '.pointInTimeRestoreDays // empty' "$PARAMS_FILE")
     SOFT_DELETE_BLOBS=$(jq -r '.softDeleteBlobs // empty' "$PARAMS_FILE")
@@ -95,11 +97,10 @@ if [ -n "$PARAMS_FILE" ]; then
     VERSIONING_BLOBS=$(jq -r '.versioningBlobs // empty' "$PARAMS_FILE")
     BLOB_CHANGE_FEED=$(jq -r '.blobChangeFeed // empty' "$PARAMS_FILE")
     BLOB_CHANGE_FEED_DAYS=$(jq -r '.blobChangeFeedDays // empty' "$PARAMS_FILE")
-    VERSION_LEVEL_IMMUTABILITY=$(jq -r '.versionLevelImmutability // empty' "$PARAMS_FILE")
 fi
 
 # Validate all required parameters are set
-for var in RESOURCE_GROUP LOCATION STORAGE_ACCOUNT_NAME VNET_NAME SUBNET_NAME PRIVATE_ENDPOINT_NAME SKU PERFORMANCE_TIER DNS_SUBSCRIPTION_ID DNS_RESOURCE_GROUP DNS_ZONE_NAME CONTAINER_NAME; do
+for var in STORAGE_RESOURCE_GROUP VNET_RESOURCE_GROUP LOCATION STORAGE_ACCOUNT_NAME VNET_NAME SUBNET_NAME PRIVATE_ENDPOINT_NAME SKU PERFORMANCE_TIER DNS_SUBSCRIPTION_ID DNS_RESOURCE_GROUP DNS_ZONE_NAME CONTAINER_NAMES; do
     if [ -z "${!var}" ]; then
         echo -e "${RED}Error: Missing required parameter: $var${NC}"
         usage
@@ -119,14 +120,14 @@ SOFT_DELETE_CONTAINERS=${SOFT_DELETE_CONTAINERS:-false}
 SOFT_DELETE_FILE_SHARES=${SOFT_DELETE_FILE_SHARES:-false}
 VERSIONING_BLOBS=${VERSIONING_BLOBS:-false}
 BLOB_CHANGE_FEED=${BLOB_CHANGE_FEED:-false}
-VERSION_LEVEL_IMMUTABILITY=${VERSION_LEVEL_IMMUTABILITY:-false}
 
 # Derived variables
 DNS_RECORD_NAME="${STORAGE_ACCOUNT_NAME}"
 
 echo -e "${GREEN}Starting deployment with the following settings:${NC}"
 echo "Original Subscription: $ORIGINAL_SUBSCRIPTION"
-echo "Resource Group: $RESOURCE_GROUP"
+echo "Storage Resource Group: $STORAGE_RESOURCE_GROUP"
+echo "VNet Resource Group: $VNET_RESOURCE_GROUP"
 echo "Location: $LOCATION"
 echo "Storage Account: $STORAGE_ACCOUNT_NAME"
 echo "VNet Name: $VNET_NAME"
@@ -137,20 +138,19 @@ echo "Performance Tier: $PERFORMANCE_TIER"
 echo "DNS Subscription: $DNS_SUBSCRIPTION_ID"
 echo "DNS Resource Group: $DNS_RESOURCE_GROUP"
 echo "DNS Zone: $DNS_ZONE_NAME"
-echo "Container: $CONTAINER_NAME"
+echo "Containers: $CONTAINER_NAMES"
 echo "Point-in-Time Restore: $POINT_IN_TIME_RESTORE (${POINT_IN_TIME_RESTORE_DAYS:-N/A} days)"
 echo "Soft Delete Blobs: $SOFT_DELETE_BLOBS (${SOFT_DELETE_BLOBS_DAYS:-N/A} days)"
 echo "Soft Delete Containers: $SOFT_DELETE_CONTAINERS (${SOFT_DELETE_CONTAINERS_DAYS:-N/A} days)"
 echo "Soft Delete File Shares: $SOFT_DELETE_FILE_SHARES (${SOFT_DELETE_FILE_SHARES_DAYS:-N/A} days)"
 echo "Versioning Blobs: $VERSIONING_BLOBS"
 echo "Blob Change Feed: $BLOB_CHANGE_FEED (${BLOB_CHANGE_FEED_DAYS:-N/A} days)"
-echo "Version-Level Immutability: $VERSION_LEVEL_IMMUTABILITY"
 
 # Step 1: Deploy the storage account with private endpoint
-echo "Creating storage account: $STORAGE_ACCOUNT_NAME"
+echo "Creating storage account: $STORAGE_ACCOUNT_NAME in $STORAGE_RESOURCE_GROUP"
 az storage account create \
     --name "$STORAGE_ACCOUNT_NAME" \
-    --resource-group "$RESOURCE_GROUP" \
+    --resource-group "$STORAGE_RESOURCE_GROUP" \
     --location "$LOCATION" \
     --kind "StorageV2" \
     --access-tier "Hot" \
@@ -169,7 +169,7 @@ check_status "Storage account creation"
 echo "Configuring blob service properties"
 az storage account blob-service-properties update \
     --account-name "$STORAGE_ACCOUNT_NAME" \
-    --resource-group "$RESOURCE_GROUP" \
+    --resource-group "$STORAGE_RESOURCE_GROUP" \
     --enable-restore-policy "$POINT_IN_TIME_RESTORE" \
     $( [ "$POINT_IN_TIME_RESTORE" = "true" ] && [ -n "$POINT_IN_TIME_RESTORE_DAYS" ] && echo "--restore-days $POINT_IN_TIME_RESTORE_DAYS" ) \
     --enable-delete-retention "$SOFT_DELETE_BLOBS" \
@@ -187,31 +187,20 @@ if [ "$SOFT_DELETE_FILE_SHARES" = "true" ] && [ -n "$SOFT_DELETE_FILE_SHARES_DAY
     echo "Configuring file service properties"
     az storage account file-service-properties update \
         --account-name "$STORAGE_ACCOUNT_NAME" \
-        --resource-group "$RESOURCE_GROUP" \
+        --resource-group "$STORAGE_RESOURCE_GROUP" \
         --enable-delete-retention "$SOFT_DELETE_FILE_SHARES" \
         --delete-retention-days "$SOFT_DELETE_FILE_SHARES_DAYS" \
         --output none
     check_status "File service properties update"
 fi
 
-# Configure version-level immutability
-if [ "$VERSION_LEVEL_IMMUTABILITY" = "true" ]; then
-    echo "Enabling version-level immutability support"
-    az storage account update \
-        --name "$STORAGE_ACCOUNT_NAME" \
-        --resource-group "$RESOURCE_GROUP" \
-        --allow-immutable-storage-with-versioning true \
-        --output none
-    check_status "Version-level immutability update"
-fi
-
-echo "Creating private endpoint for storage account with VNet: $VNET_NAME, Subnet: $SUBNET_NAME"
+echo "Creating private endpoint for storage account with VNet: $VNET_NAME, Subnet: $SUBNET_NAME in $VNET_RESOURCE_GROUP"
 az network private-endpoint create \
     --name "$PRIVATE_ENDPOINT_NAME" \
-    --resource-group "$RESOURCE_GROUP" \
+    --resource-group "$VNET_RESOURCE_GROUP" \
     --vnet-name "$VNET_NAME" \
     --subnet "$SUBNET_NAME" \
-    --private-connection-resource-id "$(az storage account show --name "$STORAGE_ACCOUNT_NAME" --resource-group "$RESOURCE_GROUP" --query id -o tsv)" \
+    --private-connection-resource-id "$(az storage account show --name "$STORAGE_ACCOUNT_NAME" --resource-group "$STORAGE_RESOURCE_GROUP" --query id -o tsv)" \
     --group-id "blob" \
     --connection-name "${STORAGE_ACCOUNT_NAME}-plink" \
     --location "$LOCATION" \
@@ -221,7 +210,7 @@ check_status "Private endpoint creation"
 echo "Retrieving private endpoint IP"
 PRIVATE_ENDPOINT_IP=$(az network private-endpoint show \
     --name "$PRIVATE_ENDPOINT_NAME" \
-    --resource-group "$RESOURCE_GROUP" \
+    --resource-group "$VNET_RESOURCE_GROUP" \
     --query "customDnsConfigs[0].ipAddresses[0]" -o tsv)
 check_status "Private endpoint IP retrieval"
 echo "Private Endpoint IP: $PRIVATE_ENDPOINT_IP"
@@ -270,18 +259,21 @@ echo "Switching back to original subscription: $ORIGINAL_SUBSCRIPTION"
 az account set --subscription "$ORIGINAL_SUBSCRIPTION"
 check_status "Switching back to original subscription"
 
-# Step 3: Create a storage container for Terraform state
-echo "Creating storage container: $CONTAINER_NAME"
-az storage container create \
-    --account-name "$STORAGE_ACCOUNT_NAME" \
-    --name "$CONTAINER_NAME" \
-    --public-access "off" \
-    --auth-mode login \
-    --output none
-check_status "Storage container creation"
+# Step 3: Create storage containers for Terraform state
+echo "Creating storage containers: $CONTAINER_NAMES"
+for CONTAINER_NAME in $CONTAINER_NAMES; do
+    echo "Creating container: $CONTAINER_NAME"
+    az storage container create \
+        --account-name "$STORAGE_ACCOUNT_NAME" \
+        --name "$CONTAINER_NAME" \
+        --public-access "off" \
+        --auth-mode login \
+        --output none
+    check_status "Storage container creation ($CONTAINER_NAME)"
+done
 
 echo -e "${GREEN}Deployment completed successfully!${NC}"
 echo "Storage Account: $STORAGE_ACCOUNT_NAME"
 echo "Private Endpoint IP: $PRIVATE_ENDPOINT_IP"
 echo "DNS A Record: $DNS_RECORD_NAME.$DNS_ZONE_NAME"
-echo "Container: $CONTAINER_NAME"
+echo "Containers: $CONTAINER_NAMES"
