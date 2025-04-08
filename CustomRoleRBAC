@@ -1,0 +1,17 @@
+{
+  "Name": "Restricted Role Assigner - Storage Account Backup Contributor",
+  "IsCustom": true,
+  "Description": "Can assign the Storage Account Backup Contributor role to identities, but no other roles.",
+  "Actions": [
+    "Microsoft.Authorization/roleAssignments/write",
+    "Microsoft.Authorization/roleAssignments/read"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/<your-subscription-id>"
+  ],
+  "Condition": "@Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] == 'a628b692-6a9f-4a76-b838-2fb86db0ebb5'",
+  "ConditionVersion": "2.0"
+}
