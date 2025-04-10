@@ -12,6 +12,6 @@
   "AssignableScopes": [
     "/subscriptions/<your-subscription-id>"
   ],
-  "Condition": "@Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] == 'a628b692-6a9f-4a76-b838-2fb86db0ebb5'",
+  "Condition": "@Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] == 'e5e2a7ff-d759-4cd2-bb51-3152d37e2eb1'",
   "ConditionVersion": "2.0"
 }
