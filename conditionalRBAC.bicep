@@ -42,7 +42,22 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
     principalId: managedIdentityPrincipalId
     roleDefinitionId: restrictedRoleAssigner.id
     principalType: 'ServicePrincipal' // Managed identities are treated as service principals
-    condition: '@Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] StringEqualsIgnoreCase \'${roleDefinitionIds.storageAccountBackupContributor}\' || @Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] StringEqualsIgnoreCase \'${roleDefinitionIds.diskBackupReader}\' || @Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] StringEqualsIgnoreCase \'${roleDefinitionIds.diskSnapshotContributor}\' || @Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] StringEqualsIgnoreCase \'${roleDefinitionIds.postgreSqlLtrBackup}\''
+    condition: '''
+      (
+        (!(ActionMatches('Microsoft.Authorization/roleAssignments/write')))
+        OR
+        (
+          @Request[Microsoft.Authorization/roleAssignments:roleDefinitionId] StringEqualsIgnoreCase '${roleDefinitionIds.storageAccountBackupContributor}' ||
+          @Request[Microsoft.Authorization/roleAssignments:roleDefinitionId] StringEqualsIgnoreCase '${roleDefinitionIds.diskBackupReader}' ||
+          @Request[Microsoft.Authorization/roleAssignments:roleDefinitionId] StringEqualsIgnoreCase '${roleDefinitionIds.diskSnapshotContributor}' ||
+          @Request[Microsoft.Authorization/roleAssignments:roleDefinitionId] StringEqualsIgnoreCase '${roleDefinitionIds.postgreSqlLtrBackup}'
+        )
+      )
+      AND
+      (
+        @Request[Microsoft.Authorization/roleAssignments:scope] StringStartsWith '/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup().name}'
+      )
+    '''
     conditionVersion: '2.0'
   }
 }
