@@ -64,3 +64,27 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 
 // Output the custom role ID for reference
 output customRoleId string = restrictedRoleAssigner.id
+
+(
+ (
+  !(ActionMatches{'Microsoft.Authorization/roleAssignments/write'})
+ )
+ OR 
+ (
+  @Request[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {e5e2a7ff-d759-4cd2-bb51-3152d37e2eb1, 3e5e47e6-65f7-47ef-90b5-e5dd4d455f24, 7efff54f-a5b4-42b5-a1c5-5411624893ce, c088a766-074b-43ba-90d4-1fb21feae531}
+  AND
+  @Request[Microsoft.Authorization/roleAssignments:PrincipalType] ForAnyOfAnyValues:StringEqualsIgnoreCase {'ServicePrincipal'}
+ )
+)
+AND
+(
+ (
+  !(ActionMatches{'Microsoft.Authorization/roleAssignments/delete'})
+ )
+ OR 
+ (
+  @Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {e5e2a7ff-d759-4cd2-bb51-3152d37e2eb1, 3e5e47e6-65f7-47ef-90b5-e5dd4d455f24, 7efff54f-a5b4-42b5-a1c5-5411624893ce, c088a766-074b-43ba-90d4-1fb21feae531}
+  AND
+  @Resource[Microsoft.Authorization/roleAssignments:PrincipalType] ForAnyOfAnyValues:StringEqualsIgnoreCase {'ServicePrincipal'}
+ )
+)
