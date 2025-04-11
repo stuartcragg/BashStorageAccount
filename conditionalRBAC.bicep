@@ -5,10 +5,10 @@ param location string = resourceGroup().location
 
 // Variables for role definition IDs (from Azure documentation as of April 10, 2025)
 var roleDefinitionIds = {
-  storageAccountBackupContributor: '/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/434105ee-43f9-465e-9b28-4c6d0cc91b7b'
+  storageAccountBackupContributor: '/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/e5e2a7ff-d759-4cd2-bb51-3152d37e2eb1'
   diskBackupReader: '/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/3e5e47e6-65f7-47ef-90b5-e5dd4d455f24'
-  diskSnapshotContributor: '/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/7efff54f-a5b4-42b5-a1c5-5f3bcc950df1'
-  postgreSqlLtrBackup: '/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/1f12053e-4f4a-40d1-bcfc-be19d7e8e9e1'
+  diskSnapshotContributor: '/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/7efff54f-a5b4-42b5-a1c5-5411624893ce'
+  postgreSqlLtrBackup: '/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/c088a766-074b-43ba-90d4-1fb21feae531'
 }
 
 // Custom role definition
